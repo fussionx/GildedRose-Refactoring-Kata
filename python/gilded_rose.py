@@ -15,39 +15,73 @@ class GildedRose(object):
 
     def update_quality(self):
         for item in self.items:
-            self._update_item(item)
+            updater_for(item).update(item)
+
+
+class ItemUpdater:
+    """End-of-day rules for an ordinary item.
+
+    Subclasses override only the part that differs for their category. Quality
+    is assumed to start within [MIN_QUALITY, MAX_QUALITY] as the requirements
+    state; it is clamped to that range after every change.
+    """
+
+    def update(self, item):
+        self._change_quality(item, self._quality_delta(item))
+        item.sell_in -= 1
+
+    def _quality_delta(self, item):
+        return -2 if self._sell_by_date_passed(item) else -1
 
     @staticmethod
-    def _update_item(item):
-        if item.name == SULFURAS:
-            return  # legendary: never has to be sold and never changes
+    def _sell_by_date_passed(item):
+        # sell_in is the number of days left to sell, so on the day it reaches
+        # 0 the item goes past its sell-by date as this update runs.
+        return item.sell_in <= 0
 
-        if item.name != AGED_BRIE and item.name != BACKSTAGE_PASS:
-            if item.quality > MIN_QUALITY:
-                item.quality = item.quality - 1
-        else:
-            if item.quality < MAX_QUALITY:
-                item.quality = item.quality + 1
-                if item.name == BACKSTAGE_PASS:
-                    if item.sell_in < 11:
-                        if item.quality < MAX_QUALITY:
-                            item.quality = item.quality + 1
-                    if item.sell_in < 6:
-                        if item.quality < MAX_QUALITY:
-                            item.quality = item.quality + 1
+    @staticmethod
+    def _change_quality(item, delta):
+        item.quality = max(MIN_QUALITY, min(MAX_QUALITY, item.quality + delta))
 
-        item.sell_in = item.sell_in - 1
 
-        if item.sell_in < 0:
-            if item.name != AGED_BRIE:
-                if item.name != BACKSTAGE_PASS:
-                    if item.quality > MIN_QUALITY:
-                        item.quality = item.quality - 1
-                else:
-                    item.quality = MIN_QUALITY
-            else:
-                if item.quality < MAX_QUALITY:
-                    item.quality = item.quality + 1
+class AgedBrieUpdater(ItemUpdater):
+    """Appreciates at the same rate ordinary items degrade."""
+
+    def _quality_delta(self, item):
+        return 2 if self._sell_by_date_passed(item) else 1
+
+
+class BackstagePassUpdater(ItemUpdater):
+    """Appreciates faster as the concert approaches, then becomes worthless."""
+
+    def _quality_delta(self, item):
+        if self._sell_by_date_passed(item):
+            return -item.quality
+        if item.sell_in <= 5:
+            return 3
+        if item.sell_in <= 10:
+            return 2
+        return 1
+
+
+class SulfurasUpdater(ItemUpdater):
+    """Legendary: never has to be sold and never changes."""
+
+    def update(self, item):
+        pass
+
+
+_UPDATERS_BY_NAME = {
+    AGED_BRIE: AgedBrieUpdater(),
+    BACKSTAGE_PASS: BackstagePassUpdater(),
+    SULFURAS: SulfurasUpdater(),
+}
+_DEFAULT_UPDATER = ItemUpdater()
+
+
+def updater_for(item):
+    """Pick the rule set that applies to an item. Updaters are stateless."""
+    return _UPDATERS_BY_NAME.get(item.name, _DEFAULT_UPDATER)
 
 
 class Item:
