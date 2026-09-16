@@ -3,6 +3,7 @@
 AGED_BRIE = "Aged Brie"
 BACKSTAGE_PASS = "Backstage passes to a TAFKAL80ETC concert"
 SULFURAS = "Sulfuras, Hand of Ragnaros"
+CONJURED_PREFIX = "Conjured"
 
 MIN_QUALITY = 0
 MAX_QUALITY = 50
@@ -71,17 +72,29 @@ class SulfurasUpdater(ItemUpdater):
         pass
 
 
+class ConjuredUpdater(ItemUpdater):
+    """Degrades twice as fast as an ordinary item."""
+
+    def _quality_delta(self, item):
+        return 2 * super()._quality_delta(item)
+
+
 _UPDATERS_BY_NAME = {
     AGED_BRIE: AgedBrieUpdater(),
     BACKSTAGE_PASS: BackstagePassUpdater(),
     SULFURAS: SulfurasUpdater(),
 }
+_CONJURED_UPDATER = ConjuredUpdater()
 _DEFAULT_UPDATER = ItemUpdater()
 
 
 def updater_for(item):
     """Pick the rule set that applies to an item. Updaters are stateless."""
-    return _UPDATERS_BY_NAME.get(item.name, _DEFAULT_UPDATER)
+    if item.name in _UPDATERS_BY_NAME:
+        return _UPDATERS_BY_NAME[item.name]
+    if item.name.startswith(CONJURED_PREFIX):
+        return _CONJURED_UPDATER
+    return _DEFAULT_UPDATER
 
 
 class Item:

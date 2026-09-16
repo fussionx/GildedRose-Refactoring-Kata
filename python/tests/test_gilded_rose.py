@@ -12,6 +12,7 @@ from gilded_rose import GildedRose, Item
 AGED_BRIE = "Aged Brie"
 SULFURAS = "Sulfuras, Hand of Ragnaros"
 BACKSTAGE_PASS = "Backstage passes to a TAFKAL80ETC concert"
+CONJURED_CAKE = "Conjured Mana Cake"
 
 
 def update(name, sell_in, quality):
@@ -81,12 +82,29 @@ class TestBackstagePasses:
         assert quality == 0
 
 
+class TestConjuredItem:
+    def test_quality_degrades_twice_as_fast_as_a_normal_item(self):
+        assert update(CONJURED_CAKE, 3, 6) == (2, 4)
+
+    def test_quality_degrades_four_per_day_once_sell_by_date_has_passed(self):
+        assert update(CONJURED_CAKE, 0, 6) == (-1, 2)
+
+    @pytest.mark.parametrize("sell_in, quality", [(3, 1), (0, 3), (-2, 0)])
+    def test_quality_is_never_negative(self, sell_in, quality):
+        _, new_quality = update(CONJURED_CAKE, sell_in, quality)
+        assert new_quality == 0
+
+    def test_any_item_whose_name_starts_with_conjured_is_conjured(self):
+        assert update("Conjured +5 Dexterity Vest", 10, 20) == (9, 18)
+
+
 def test_all_items_in_the_inventory_are_updated():
     items = [
         Item("+5 Dexterity Vest", 10, 20),
         Item(AGED_BRIE, 2, 0),
         Item(SULFURAS, 0, 80),
         Item(BACKSTAGE_PASS, 5, 20),
+        Item(CONJURED_CAKE, 3, 6),
     ]
     GildedRose(items).update_quality()
     assert [(i.sell_in, i.quality) for i in items] == [
@@ -94,6 +112,7 @@ def test_all_items_in_the_inventory_are_updated():
         (1, 1),
         (0, 80),
         (4, 23),
+        (2, 4),
     ]
 
 
