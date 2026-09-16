@@ -4,3 +4,5 @@
 .idea/
 *.iml
 uv.lock
+.approval_tests_temp/
+.venv/
