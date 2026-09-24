@@ -2,13 +2,35 @@
 
 For exercise instructions see [top level README](../README.md)
 
-Suggestion: create a python virtual environment for this project. See the [documentation](https://docs.python.org/3/library/venv.html)
+## Set up
 
-## Run the unit tests from the Command-Line
+Dependencies are declared in `pyproject.toml`. With [uv](https://docs.astral.sh/uv/):
 
 ```
-python -m unittest
+uv sync --group test
 ```
+
+or with a plain virtual environment: `python -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt`.
+
+## Run the tests from the Command-Line
+
+```
+uv run pytest
+```
+
+This runs both the unit tests in `tests/test_gilded_rose.py` (one focused test per
+inventory rule) and the 30-day approval test described below. For a coverage report:
+
+```
+uv run coverage run -m pytest && uv run coverage report
+```
+
+## How the rules are organised
+
+`gilded_rose.py` has one `ItemUpdater` subclass per item category (ordinary, Aged Brie,
+backstage passes, Sulfuras, Conjured). `updater_for(item)` picks the rule set from the
+item's name and `GildedRose.update_quality()` delegates to it. To add a new category,
+add a subclass and register it in `updater_for`; the `Item` class is unchanged.
 
 ## Run the TextTest fixture from the Command-Line
 
@@ -30,10 +52,8 @@ There are instructions in the [TextTest Readme](../texttests/README.md) for sett
 
 ## Run the ApprovalTests.Python test
 
-This test uses the framework [ApprovalTests.Python](https://github.com/approvals/ApprovalTests.Python). You will need to install  Run it like this:
-
-```
-python tests/test_gilded_rose_approvals.py
-```
-
-You will need to approve the output file which appears under "approved_files" by renaming it from xxx.received.txt to xxx.approved.txt.
+This test uses the framework [ApprovalTests.Python](https://github.com/approvals/ApprovalTests.Python)
+and runs as part of `uv run pytest`. It captures 30 days of `texttest_fixture.py` output and
+compares it with `tests/approved_files/*.approved.txt`. On a mismatch the diff is printed to
+the console; if the new output is correct, approve it by copying `xxx.received.txt` over
+`xxx.approved.txt`.
